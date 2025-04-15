@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,7 +24,7 @@ export default function BudgetPage() {
   const [budgetVsActual, setBudgetVsActual] = useState<any[]>([]);
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
   const [editValue, setEditValue] = useState<string>("");
-  
+
   useEffect(() => {
     const loadedTransactions = getTransactions();
     const loadedBudget = getBudget();
@@ -33,7 +32,6 @@ export default function BudgetPage() {
     setTransactions(loadedTransactions);
     setMonthlyBudget(loadedBudget);
     
-    // Calculate budget vs actual
     const calculatedData = calculateBudgetVsActual(
       loadedTransactions,
       loadedBudget.budgets
@@ -74,7 +72,6 @@ export default function BudgetPage() {
     setMonthlyBudget(updatedMonthlyBudget);
     saveBudget(updatedMonthlyBudget);
     
-    // Recalculate budget vs actual
     const recalculatedData = calculateBudgetVsActual(
       transactions,
       updatedBudgets
@@ -84,7 +81,6 @@ export default function BudgetPage() {
     cancelEditing();
   };
 
-  // Format data for chart
   const chartData = budgetVsActual.map(item => ({
     name: item.category,
     budgeted: item.budgeted,
@@ -215,7 +211,7 @@ export default function BudgetPage() {
                         value={(item.spent / item.budgeted) * 100} 
                         className="h-2"
                         indicatorClassName={
-                          item.spent > item.budgeted ? "bg-budget-red" : "bg-budget-green"
+                          item.spent > item.budgeted ? "bg-destructive" : "bg-primary"
                         }
                       />
                     </div>
