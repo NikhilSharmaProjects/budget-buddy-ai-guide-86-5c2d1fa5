@@ -24,19 +24,32 @@ export default function AssistantPage() {
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const apiKeyInputRef = useRef<HTMLInputElement>(null);
-  const [apiKey, setApiKey] = useState("");
-  const [showApiKeyInput, setShowApiKeyInput] = useState(true);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  
+  // Set the API key directly
+  const apiKey = "AIzaSyBdR8qbIJwHQpqg1DcxgJ0kNlJFcW0PYxM";
   
   useEffect(() => {
     const savedConversation = getConversation();
-    setConversation(savedConversation);
     
-    // Check if API key is stored in session storage (temporary solution)
-    const storedApiKey = sessionStorage.getItem("gemini_api_key");
-    if (storedApiKey) {
-      setApiKey(storedApiKey);
-      setShowApiKeyInput(false);
+    if (savedConversation.messages.length === 0) {
+      // Initialize with a welcome message if conversation is empty
+      const initialMessage: AIMessage = {
+        id: Math.random().toString(36).substring(2, 11),
+        content: "Hello! I'm your Budget Buddy assistant. How can I help you with your finances today?",
+        sender: "assistant",
+        timestamp: new Date().toISOString()
+      };
+      
+      const newConversation: AIConversation = {
+        id: Math.random().toString(36).substring(2, 11),
+        messages: [initialMessage]
+      };
+      
+      setConversation(newConversation);
+      saveConversation(newConversation);
+    } else {
+      setConversation(savedConversation);
     }
   }, []);
   
@@ -46,19 +59,20 @@ export default function AssistantPage() {
   
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    
+    // Force scroll to bottom for the ScrollArea component
+    if (scrollAreaRef.current) {
+      const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+      if (scrollContainer) {
+        scrollContainer.scrollTop = scrollContainer.scrollHeight;
+      }
+    }
   };
   
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!inputMessage.trim()) return;
-    
-    // Check if API key is set
-    if (!apiKey && showApiKeyInput) {
-      alert("Please enter your Gemini API Key first");
-      apiKeyInputRef.current?.focus();
-      return;
-    }
     
     // Add user message
     const userMessage: AIMessage = {
@@ -218,17 +232,6 @@ What financial goal would you like help with today?`;
     }
   };
   
-  const saveApiKey = () => {
-    if (!apiKey.trim()) {
-      alert("Please enter a valid API key");
-      return;
-    }
-    
-    // Store in session storage (temporary solution)
-    sessionStorage.setItem("gemini_api_key", apiKey);
-    setShowApiKeyInput(false);
-  };
-  
   const resetConversation = () => {
     const initialMessage: AIMessage = {
       id: Math.random().toString(36).substring(2, 11),
@@ -250,41 +253,6 @@ What financial goal would you like help with today?`;
     <div className="flex flex-col min-h-screen bg-background">
       <Header title="AI Assistant" />
       <main className="flex-1 p-4 lg:p-8 flex flex-col">
-        {showApiKeyInput && (
-          <Card className="mb-6 animate-fade-in">
-            <CardContent className="pt-6">
-              <div className="space-y-4">
-                <div className="text-lg font-medium">Enter your Gemini API Key</div>
-                <p className="text-sm text-muted-foreground">
-                  To use the AI assistant, you need to provide a Google Gemini API key. 
-                  Get one for free at <a 
-                    href="https://aistudio.google.com/app/apikey" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-budget-purple underline"
-                  >
-                    Google AI Studio
-                  </a>.
-                </p>
-                <div className="flex gap-2">
-                  <Input
-                    type="text"
-                    placeholder="Paste your Gemini API key here"
-                    ref={apiKeyInputRef}
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                    className="flex-1"
-                  />
-                  <Button onClick={saveApiKey}>Save Key</Button>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Note: This key is stored in your browser session only and is not sent to our servers.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-        
         <Card className="flex-1 flex flex-col animate-fade-in">
           <CardContent className="flex-1 flex flex-col p-0 gap-0">
             <div className="p-4 border-b flex justify-between items-center">
@@ -294,49 +262,51 @@ What financial goal would you like help with today?`;
               </Button>
             </div>
             
-            <ScrollArea className="flex-1 p-4">
-              <div className="space-y-4">
-                {conversation.messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`flex ${
-                      message.sender === "user" ? "justify-end" : "justify-start"
-                    }`}
-                  >
+            <div ref={scrollAreaRef} className="flex-1 relative">
+              <ScrollArea className="h-[calc(100vh-220px)] p-4">
+                <div className="space-y-4">
+                  {conversation.messages.map((message) => (
                     <div
-                      className={`max-w-[80%] rounded-lg p-3 ${
-                        message.sender === "user"
-                          ? "bg-budget-purple text-white"
-                          : "bg-muted"
+                      key={message.id}
+                      className={`flex ${
+                        message.sender === "user" ? "justify-end" : "justify-start"
                       }`}
                     >
-                      <div className="whitespace-pre-line">{message.content}</div>
                       <div
-                        className={`text-xs mt-1 ${
+                        className={`max-w-[80%] rounded-lg p-3 ${
                           message.sender === "user"
-                            ? "text-budget-purple-light"
-                            : "text-muted-foreground"
+                            ? "bg-budget-purple text-white"
+                            : "bg-muted"
                         }`}
                       >
-                        {new Date(message.timestamp).toLocaleTimeString()}
+                        <div className="whitespace-pre-line">{message.content}</div>
+                        <div
+                          className={`text-xs mt-1 ${
+                            message.sender === "user"
+                              ? "text-budget-purple-light"
+                              : "text-muted-foreground"
+                          }`}
+                        >
+                          {new Date(message.timestamp).toLocaleTimeString()}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-                {isLoading && (
-                  <div className="flex justify-start">
-                    <div className="max-w-[80%] rounded-lg p-3 bg-muted">
-                      <div className="flex space-x-2">
-                        <div className="w-2 h-2 rounded-full bg-muted-foreground animate-pulse"></div>
-                        <div className="w-2 h-2 rounded-full bg-muted-foreground animate-pulse" style={{ animationDelay: "0.2s" }}></div>
-                        <div className="w-2 h-2 rounded-full bg-muted-foreground animate-pulse" style={{ animationDelay: "0.4s" }}></div>
+                  ))}
+                  {isLoading && (
+                    <div className="flex justify-start">
+                      <div className="max-w-[80%] rounded-lg p-3 bg-muted">
+                        <div className="flex space-x-2">
+                          <div className="w-2 h-2 rounded-full bg-muted-foreground animate-pulse"></div>
+                          <div className="w-2 h-2 rounded-full bg-muted-foreground animate-pulse" style={{ animationDelay: "0.2s" }}></div>
+                          <div className="w-2 h-2 rounded-full bg-muted-foreground animate-pulse" style={{ animationDelay: "0.4s" }}></div>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
-                <div ref={messagesEndRef} />
-              </div>
-            </ScrollArea>
+                  )}
+                  <div ref={messagesEndRef} />
+                </div>
+              </ScrollArea>
+            </div>
             
             <div className="p-4 border-t">
               <form onSubmit={handleSendMessage} className="flex gap-2">
@@ -344,11 +314,12 @@ What financial goal would you like help with today?`;
                   placeholder="Ask a question about your finances..."
                   value={inputMessage}
                   onChange={(e) => setInputMessage(e.target.value)}
-                  disabled={isLoading || (showApiKeyInput && !apiKey)}
+                  disabled={isLoading}
+                  className="flex-1"
                 />
                 <Button 
                   type="submit" 
-                  disabled={isLoading || !inputMessage.trim() || (showApiKeyInput && !apiKey)}
+                  disabled={isLoading || !inputMessage.trim()}
                 >
                   <Send className="h-4 w-4" />
                 </Button>
