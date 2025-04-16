@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send } from "lucide-react";
+import { Bot, Send, Sparkles, Brain, Trash2, Zap } from "lucide-react";
 import { Header } from "@/components/layout/Header";
 import { AIMessage, AIConversation } from "@/types";
 import { getConversation, saveConversation, getTransactions, getBudget } from "@/utils/localStorage";
@@ -15,6 +15,8 @@ import {
   calculateSpendingByCategory,
   formatCurrency
 } from "@/utils/calculations";
+import { useGame } from "@/components/game/GameContext";
+import { Progress } from "@/components/ui/progress";
 
 export default function AssistantPage() {
   const [conversation, setConversation] = useState<AIConversation>({
@@ -23,11 +25,20 @@ export default function AssistantPage() {
   });
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isThinking, setIsThinking] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const { unlockAchievement, addPoints } = useGame();
   
-  // Set the API key directly
-  const apiKey = "AIzaSyBdR8qbIJwHQpqg1DcxgJ0kNlJFcW0PYxM";
+  // Simulate AI understanding with thinking process
+  const thinkingMessages = [
+    "Analyzing financial data...",
+    "Calculating spending patterns...",
+    "Identifying budget opportunities...",
+    "Applying financial models...",
+    "Generating recommendations..."
+  ];
   
   useEffect(() => {
     const savedConversation = getConversation();
@@ -36,7 +47,15 @@ export default function AssistantPage() {
       // Initialize with a welcome message if conversation is empty
       const initialMessage: AIMessage = {
         id: Math.random().toString(36).substring(2, 11),
-        content: "Hello! I'm your Budget Buddy assistant. How can I help you with your finances today?",
+        content: `Hello! 👋 I'm your Budget Buddy AI assistant, here to help you reach your financial goals!
+
+I can analyze your spending, suggest budgets, provide savings tips, and answer your financial questions. Try asking me something like:
+- "How can I save more money this month?"
+- "Analyze my spending patterns"
+- "Help me create a budget plan"
+- "What are my top expense categories?"
+
+What would you like help with today?`,
         sender: "assistant",
         timestamp: new Date().toISOString()
       };
@@ -51,6 +70,9 @@ export default function AssistantPage() {
     } else {
       setConversation(savedConversation);
     }
+
+    // Generate AI suggestions
+    generateAiSuggestions();
   }, []);
   
   useEffect(() => {
@@ -67,6 +89,41 @@ export default function AssistantPage() {
         scrollContainer.scrollTop = scrollContainer.scrollHeight;
       }
     }
+  };
+
+  const generateAiSuggestions = () => {
+    const transactions = getTransactions();
+    const budget = getBudget();
+    const totalIncome = calculateTotalIncome(transactions);
+    const totalExpenses = calculateTotalExpenses(transactions);
+    const balance = calculateBalance(transactions);
+    const spendingByCategory = calculateSpendingByCategory(transactions);
+    
+    // Generate smart suggestions based on financial data
+    const suggestions: string[] = [];
+    
+    // Check if expenses are high relative to income
+    if (totalExpenses > totalIncome * 0.8) {
+      suggestions.push("How can I reduce my expenses?");
+    }
+    
+    // Identify top spending category
+    const topCategory = Object.entries(spendingByCategory)
+      .sort(([, a], [, b]) => b - a)[0][0];
+    suggestions.push(`How can I spend less on ${topCategory}?`);
+    
+    // Save more if balance is positive
+    if (balance > 0) {
+      suggestions.push("What's the best way to invest my savings?");
+    }
+    
+    // General budget question
+    suggestions.push("Create a budget plan for me");
+    
+    // Analyze spending
+    suggestions.push("Analyze my spending patterns");
+    
+    setAiSuggestions(suggestions);
   };
   
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -90,6 +147,12 @@ export default function AssistantPage() {
     setInputMessage("");
     setIsLoading(true);
     
+    // Unlock AI assistant achievement if first time using
+    if (conversation.messages.length <= 1) {
+      unlockAchievement("ai_assistant");
+      addPoints(5); // Give points for using the AI
+    }
+    
     try {
       // Get financial data for AI context
       const transactions = getTransactions();
@@ -100,29 +163,42 @@ export default function AssistantPage() {
       const balance = calculateBalance(transactions);
       const spendingByCategory = calculateSpendingByCategory(transactions);
       
-      // Convert financial data to string context for AI
-      const financialContext = `
-        User's financial snapshot:
-        - Total Income: ${formatCurrency(totalIncome)}
-        - Total Expenses: ${formatCurrency(totalExpenses)}
-        - Current Balance: ${formatCurrency(balance)}
-        - Spending by Category: ${Object.entries(spendingByCategory)
-            .map(([category, amount]) => `${category}: ${formatCurrency(amount)}`)
-            .join(', ')}
-        - Monthly Budget: ${budget.budgets
-            .map(b => `${b.category}: ${formatCurrency(b.amount)}`)
-            .join(', ')}
-      `;
+      // Simulate AI "thinking" with progress updates
+      setIsThinking(true);
+      let thinkingIndex = 0;
       
-      // For demo purposes, generate a mock AI response without actual API call
-      let aiResponse = "";
+      const thinkingInterval = setInterval(() => {
+        // Add a thinking message
+        const thinkingMessage: AIMessage = {
+          id: Math.random().toString(36).substring(2, 11),
+          content: thinkingMessages[thinkingIndex],
+          sender: "thinking",
+          timestamp: new Date().toISOString()
+        };
+        
+        setConversation(prev => ({
+          ...prev,
+          messages: [...prev.messages.filter(m => m.sender !== "thinking"), thinkingMessage]
+        }));
+        
+        thinkingIndex = (thinkingIndex + 1) % thinkingMessages.length;
+      }, 1000);
+      
+      // Simulate AI processing time
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      clearInterval(thinkingInterval);
+      setIsThinking(false);
       
       // Simple rule-based responses for demo
       const userQuery = inputMessage.toLowerCase();
+      let aiResponse = "";
       
       if (userQuery.includes("save") && userQuery.includes("more")) {
         aiResponse = `Based on your spending patterns, I see a few opportunities to save more:
         
+✨ **Top Saving Opportunities**
+
 1. Your ${Object.entries(spendingByCategory)
           .sort(([, a], [, b]) => b - a)
           .slice(0, 2)
@@ -136,34 +212,52 @@ export default function AssistantPage() {
        .sort(([, a], [, b]) => b - a)[0][0] as keyof typeof spendingByCategory] * 0.15)
    )} per month.
         
-2. Consider using the 50/30/20 rule: 50% for needs, 30% for wants, and 20% for savings.
+2. **Try the 50/30/20 Rule**: 50% for needs, 30% for wants, and 20% for savings.
         
-3. Set up automatic transfers to a savings account on payday to build savings consistently.`;
+3. **Automation is Your Friend**: Set up automatic transfers to a savings account on payday to build savings consistently.
+
+4. **Challenge**: Try a "no-spend weekend" once a month - this small change can save ${formatCurrency(totalExpenses * 0.07)} monthly based on your patterns.
+
+Would you like me to help create a specific savings plan for any category?`;
       } 
-      else if (userQuery.includes("summarize") && (userQuery.includes("spending") || userQuery.includes("expenses"))) {
-        aiResponse = `Here's a summary of your recent spending:
-        
-Total Expenses: ${formatCurrency(totalExpenses)}
-        
-Top 3 Categories:
+      else if (userQuery.includes("summarize") || 
+              ((userQuery.includes("spending") || userQuery.includes("expenses")) && 
+               (userQuery.includes("analysis") || userQuery.includes("analyze")))) {
+        aiResponse = `# 📊 Spending Analysis Summary
+
+**Total Expenses**: ${formatCurrency(totalExpenses)}
+**Total Income**: ${formatCurrency(totalIncome)}
+**Current Balance**: ${formatCurrency(balance)}
+
+## 🔍 Top Categories:
 ${Object.entries(spendingByCategory)
   .sort(([, a], [, b]) => b - a)
   .slice(0, 3)
-  .map(([category, amount], index) => `${index + 1}. ${category}: ${formatCurrency(amount)} (${Math.round((amount / totalExpenses) * 100)}% of total)`)
+  .map(([category, amount], index) => `${index + 1}. **${category}**: ${formatCurrency(amount)} (${Math.round((amount / totalExpenses) * 100)}% of total)`)
   .join('\n')}
-        
-You've spent ${balance >= 0 ? formatCurrency(totalIncome - balance) : 'more than you earned'} this month.
 
-${balance >= 0 
-  ? `You have ${formatCurrency(balance)} remaining in your budget.` 
-  : `You're currently ${formatCurrency(Math.abs(balance))} over budget.`}`;
+## 💡 Key Insights:
+- You've spent ${balance >= 0 ? formatCurrency(totalIncome - balance) : 'more than you earned'} this month
+- ${balance >= 0 
+  ? `You have ${formatCurrency(balance)} remaining in your budget` 
+  : `You're currently ${formatCurrency(Math.abs(balance))} over budget`}
+- Your spending on ${Object.entries(spendingByCategory)
+  .sort(([, a], [, b]) => b - a)[0][0]} is ${Math.round((spendingByCategory[Object.entries(spendingByCategory)
+  .sort(([, a], [, b]) => b - a)[0][0] as keyof typeof spendingByCategory] / totalExpenses) * 100)}% of your total expenses
+
+## 🎯 Recommendations:
+Consider reallocating some of your ${Object.entries(spendingByCategory)
+  .sort(([, a], [, b]) => b - a)[0][0]} budget to savings or paying down debt.
+
+Would you like more detailed analysis on any specific category?`;
       }
       else if (userQuery.includes("suggest") && userQuery.includes("budget")) {
-        aiResponse = `Based on your income and spending patterns, here's a suggested budget:
-        
-Monthly Income: ${formatCurrency(totalIncome)}
-        
-Recommended Budget Allocation:
+        aiResponse = `# 🌟 Personalized Budget Plan
+
+Based on your income of ${formatCurrency(totalIncome)} and current spending patterns, I've created a customized budget plan for you:
+
+## 💰 Recommended Monthly Allocations:
+
 ${Object.entries(spendingByCategory)
   .map(([category, amount]) => {
     // Adjust budget based on category (simplified logic for demo)
@@ -171,32 +265,113 @@ ${Object.entries(spendingByCategory)
       ? 0.9  // Reduce discretionary spending
       : category === 'Income' ? 0 : 1.0;
     const recommendedAmount = amount * adjustment;
-    return `- ${category}: ${formatCurrency(recommendedAmount)} (${
-      adjustment < 1 ? '10% reduction' : 'maintain current'
-    })`;
+    const percentIncome = (recommendedAmount / totalIncome * 100).toFixed(1);
+    return `- **${category}**: ${formatCurrency(recommendedAmount)} (${percentIncome}% of income) ${
+      adjustment < 1 ? '🔽 10% reduction recommended' : '✅ maintain current'
+    }`;
   })
   .join('\n')}
-        
-I recommend allocating at least ${formatCurrency(totalIncome * 0.2)} (20% of income) to savings.`;
+
+## 🏆 Savings Goal
+I recommend allocating at least **${formatCurrency(totalIncome * 0.2)}** (20% of income) to savings each month.
+
+## 🚀 Next Steps:
+1. Track your expenses in each category
+2. Review progress weekly
+3. Adjust as needed at month-end
+
+Would you like me to create a more detailed plan for a specific category?`;
+      }
+      else if (userQuery.includes("help") && 
+               (userQuery.includes("debt") || userQuery.includes("loans") || userQuery.includes("credit"))) {
+        aiResponse = `# 🛡️ Debt Management Strategy
+
+Based on your financial profile, here's a personalized debt management plan:
+
+## 💳 Debt Reduction Approach
+
+I recommend the **Avalanche Method**:
+1. List all debts from highest to lowest interest rate
+2. Pay minimum payments on all debts
+3. Put extra money toward the highest-interest debt first
+4. Once paid off, move to the next highest-interest debt
+
+## 🧮 Potential Results
+
+If you allocate ${formatCurrency(balance > 0 ? balance * 0.8 : totalIncome * 0.15)} monthly to debt payment:
+- You could save approximately ${formatCurrency(totalIncome * 0.05)} in interest over time
+- Potential debt-free timeline: 18-24 months (estimated)
+
+## 🌟 Pro Tips:
+- Consider balance transfers for high-interest credit cards
+- Automate payments to avoid missed deadlines
+- Consider consolidation for multiple high-interest debts
+
+Would you like to create a specific debt payoff plan with your actual debt amounts and interest rates?`;
+      }
+      else if (userQuery.includes("invest") || userQuery.includes("investing")) {
+        aiResponse = `# 💎 Investment Strategy Guidance
+
+Based on your financial profile, here are personalized investment recommendations:
+
+## 🏦 Suggested Investment Allocation
+
+With your current situation, consider this allocation:
+- **Emergency Fund**: 3-6 months of expenses in high-yield savings (priority if not established)
+- **Retirement**: 15% of income in tax-advantaged accounts (401(k), IRA)
+- **Medium-term goals**: 5-10% in balanced funds or ETFs
+- **Growth investments**: 5-10% in diversified stock index funds
+
+## 📊 Getting Started Steps
+
+1. **First Priority**: Establish emergency fund of ${formatCurrency(totalExpenses * 3)} to ${formatCurrency(totalExpenses * 6)}
+2. **Next Step**: Max out employer 401(k) match if available
+3. **Then**: Consider a Roth IRA for tax-free growth
+4. **Finally**: Explore taxable investment accounts for additional goals
+
+## 💡 Key Principles:
+- Diversify investments across asset classes
+- Focus on low-fee index funds for long-term growth
+- Invest regularly regardless of market conditions
+- Rebalance portfolio annually
+
+Would you like more specific investment recommendations or information about particular investment types?`;
       }
       else {
-        aiResponse = `I'm your Budget Buddy AI assistant, here to help with your financial questions.
+        aiResponse = `# 🚀 Financial AI Assistant
+
+I'm your Budget Buddy AI assistant, here to help with your financial questions.
         
-Based on your current financial situation:
-- Your income is ${formatCurrency(totalIncome)}
-- Your expenses total ${formatCurrency(totalExpenses)}
-- Your current balance is ${formatCurrency(balance)}
-        
-You can ask me questions like:
+## 📊 Your Financial Snapshot:
+- Income: ${formatCurrency(totalIncome)}
+- Expenses: ${formatCurrency(totalExpenses)}
+- Balance: ${formatCurrency(balance)}
+- Top expense: ${Object.entries(spendingByCategory)
+  .sort(([, a], [, b]) => b - a)[0][0]} (${formatCurrency(
+    spendingByCategory[Object.entries(spendingByCategory)
+    .sort(([, a], [, b]) => b - a)[0][0] as keyof typeof spendingByCategory]
+  )})
+
+## 💡 I Can Help With:
+- Analyzing your spending patterns
+- Creating a personalized budget
+- Identifying saving opportunities
+- Debt reduction strategies
+- Investment guidance
+- Financial goal planning
+
+## 🎯 Suggested Questions:
 - "How can I save more this month?"
-- "Summarize my spending in the last few weeks"
-- "Suggest a budget based on my spending patterns"
-        
-What financial goal would you like help with today?`;
+- "Analyze my spending patterns"
+- "Suggest a budget based on my income"
+- "Help me reduce my debt"
+- "How should I start investing?"
+
+What specific financial goal would you like help with today?`;
       }
       
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Remove thinking messages
+      const messagesWithoutThinking = updatedConversation.messages.filter(m => m.sender !== "thinking");
       
       // Add AI response
       const aiMessage: AIMessage = {
@@ -206,11 +381,17 @@ What financial goal would you like help with today?`;
         timestamp: new Date().toISOString()
       };
       
-      const finalMessages = [...updatedMessages, aiMessage];
+      const finalMessages = [...messagesWithoutThinking, aiMessage];
       const finalConversation = { ...conversation, messages: finalMessages };
       
       setConversation(finalConversation);
       saveConversation(finalConversation);
+      
+      // Generate new AI suggestions after each conversation
+      generateAiSuggestions();
+      
+      // Add points for using the AI
+      addPoints(3);
     } catch (error) {
       console.error("Error generating AI response:", error);
       
@@ -222,7 +403,7 @@ What financial goal would you like help with today?`;
         timestamp: new Date().toISOString()
       };
       
-      const errorMessages = [...updatedMessages, errorMessage];
+      const errorMessages = [...updatedMessages.filter(m => m.sender !== "thinking"), errorMessage];
       const errorConversation = { ...conversation, messages: errorMessages };
       
       setConversation(errorConversation);
@@ -231,11 +412,23 @@ What financial goal would you like help with today?`;
       setIsLoading(false);
     }
   };
+
+  const useSuggestion = (suggestion: string) => {
+    setInputMessage(suggestion);
+  };
   
   const resetConversation = () => {
     const initialMessage: AIMessage = {
       id: Math.random().toString(36).substring(2, 11),
-      content: "Hello! I'm your Budget Buddy assistant. How can I help you with your finances today?",
+      content: `Hello! 👋 I'm your Budget Buddy AI assistant, here to help you reach your financial goals!
+
+I can analyze your spending, suggest budgets, provide savings tips, and answer your financial questions. Try asking me something like:
+- "How can I save more money this month?"
+- "Analyze my spending patterns"
+- "Help me create a budget plan"
+- "What are my top expense categories?"
+
+What would you like help with today?`,
       sender: "assistant",
       timestamp: new Date().toISOString()
     };
@@ -256,8 +449,19 @@ What financial goal would you like help with today?`;
         <Card className="flex-1 flex flex-col animate-fade-in">
           <CardContent className="flex-1 flex flex-col p-0 gap-0">
             <div className="p-4 border-b flex justify-between items-center">
-              <h2 className="font-semibold">Chat with Budget Buddy</h2>
-              <Button variant="outline" size="sm" onClick={resetConversation}>
+              <div className="flex items-center space-x-2">
+                <div className="h-8 w-8 rounded-full bg-budget-purple flex items-center justify-center text-white">
+                  <Bot size={18} />
+                </div>
+                <h2 className="font-semibold">Budget Buddy AI</h2>
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={resetConversation}
+                className="group transition-all duration-300"
+              >
+                <Trash2 className="h-4 w-4 mr-2 group-hover:text-destructive transition-colors" />
                 New Chat
               </Button>
             </div>
@@ -272,27 +476,78 @@ What financial goal would you like help with today?`;
                         message.sender === "user" ? "justify-end" : "justify-start"
                       }`}
                     >
-                      <div
-                        className={`max-w-[80%] rounded-lg p-3 ${
-                          message.sender === "user"
-                            ? "bg-budget-purple text-white"
-                            : "bg-muted"
-                        }`}
-                      >
-                        <div className="whitespace-pre-line">{message.content}</div>
-                        <div
-                          className={`text-xs mt-1 ${
-                            message.sender === "user"
-                              ? "text-budget-purple-light"
-                              : "text-muted-foreground"
-                          }`}
-                        >
-                          {new Date(message.timestamp).toLocaleTimeString()}
+                      {message.sender === "thinking" ? (
+                        <div className="max-w-[80%] rounded-lg p-3 bg-muted flex items-center animate-pulse">
+                          <Brain className="h-4 w-4 mr-2 text-budget-purple" />
+                          <div className="text-sm">{message.content}</div>
                         </div>
-                      </div>
+                      ) : (
+                        <div
+                          className={`max-w-[80%] rounded-lg p-3 ${
+                            message.sender === "user"
+                              ? "bg-budget-purple text-white"
+                              : "bg-muted"
+                          } animate-fade-in shadow-sm`}
+                        >
+                          <div className="whitespace-pre-line markdown">
+                            {message.content.split('# ').map((section, index) => {
+                              if (index === 0 && !section.trim()) return null;
+                              
+                              if (index === 0) {
+                                return <p key={index}>{section}</p>;
+                              }
+                              
+                              const [title, ...content] = section.split('\n');
+                              return (
+                                <div key={index} className="mb-3">
+                                  <h3 className={`text-lg font-bold mb-2 ${message.sender === "user" ? "text-white" : "text-foreground"}`}>
+                                    {title}
+                                  </h3>
+                                  <div>
+                                    {content.join('\n').split('## ').map((subsection, subIndex) => {
+                                      if (subIndex === 0 && !subsection.trim()) return null;
+                                      
+                                      if (subIndex === 0) {
+                                        return <p key={subIndex} dangerouslySetInnerHTML={{ 
+                                          __html: subsection
+                                            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                                            .replace(/\n/g, '<br>') 
+                                        }} />;
+                                      }
+                                      
+                                      const [subtitle, ...subcontent] = subsection.split('\n');
+                                      return (
+                                        <div key={subIndex} className="mb-2 mt-3">
+                                          <h4 className={`text-md font-semibold mb-1 ${message.sender === "user" ? "text-white" : "text-foreground"}`}>
+                                            {subtitle}
+                                          </h4>
+                                          <p dangerouslySetInnerHTML={{ 
+                                            __html: subcontent.join('\n')
+                                              .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                                              .replace(/\n/g, '<br>') 
+                                          }} />
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <div
+                            className={`text-xs mt-2 ${
+                              message.sender === "user"
+                                ? "text-budget-purple-light"
+                                : "text-muted-foreground"
+                            }`}
+                          >
+                            {new Date(message.timestamp).toLocaleTimeString()}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
-                  {isLoading && (
+                  {isLoading && !isThinking && (
                     <div className="flex justify-start">
                       <div className="max-w-[80%] rounded-lg p-3 bg-muted">
                         <div className="flex space-x-2">
@@ -308,6 +563,25 @@ What financial goal would you like help with today?`;
               </ScrollArea>
             </div>
             
+            {/* AI Suggestions */}
+            <div className="p-3 border-t border-b bg-muted/50">
+              <div className="flex items-center mb-2">
+                <Sparkles size={16} className="text-budget-purple mr-2" />
+                <span className="text-sm font-medium">AI Suggestions</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {aiSuggestions.map((suggestion, index) => (
+                  <button
+                    key={index}
+                    onClick={() => useSuggestion(suggestion)}
+                    className="px-3 py-1.5 text-xs rounded-full bg-budget-purple-light text-budget-purple-dark hover:bg-budget-purple hover:text-white transition-colors duration-300"
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+            </div>
+            
             <div className="p-4 border-t">
               <form onSubmit={handleSendMessage} className="flex gap-2">
                 <Input
@@ -320,8 +594,12 @@ What financial goal would you like help with today?`;
                 <Button 
                   type="submit" 
                   disabled={isLoading || !inputMessage.trim()}
+                  className="group"
                 >
-                  <Send className="h-4 w-4" />
+                  {isLoading ? 
+                    <div className="animate-spin h-4 w-4 border-2 border-budget-purple border-t-transparent rounded-full" /> :
+                    <Send className="h-4 w-4 group-hover:translate-x-1 transition-transform duration-300" />
+                  }
                 </Button>
               </form>
             </div>
