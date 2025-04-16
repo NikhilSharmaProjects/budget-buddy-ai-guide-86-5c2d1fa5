@@ -34,7 +34,7 @@ export interface MonthlyBudget {
 export interface AIMessage {
   id: string;
   content: string;
-  sender: "user" | "assistant";
+  sender: "user" | "assistant" | "thinking";
   timestamp: string;
 }
 

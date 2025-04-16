@@ -143,6 +143,33 @@ body {
   animation: pulse 2s ease-in-out infinite;
 }
 
+/* Thinking animation */
+@keyframes thinking {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
+.animate-thinking {
+  animation: thinking 1.5s ease-in-out infinite;
+}
+
+/* Progress animation */
+@keyframes progress {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 100% 50%; }
+}
+
+.animate-progress {
+  background: linear-gradient(
+    270deg,
+    var(--primary) 0%,
+    var(--primary-foreground) 50%,
+    var(--primary) 100%
+  );
+  background-size: 200% 100%;
+  animation: progress 2s linear infinite;
+}
+
 /* Animations */
 @keyframes logo-spin {
   from {
