@@ -92,12 +92,18 @@
 
   body {
     @apply bg-background text-foreground;
+    overflow-y: auto !important;
+  }
+
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
   }
 }
 
 @layer components {
   .card-hover {
-    @apply transition-all duration-200 hover:shadow-md hover:-translate-y-1;
+    @apply transition-all duration-300 hover:shadow-md hover:-translate-y-1;
   }
   
   .stat-card {
@@ -119,4 +125,147 @@
   .negative-amount {
     @apply text-budget-red;
   }
+
+  /* Gamification elements */
+  .achievement-card {
+    @apply p-4 rounded-xl bg-gradient-to-br from-budget-purple/80 to-budget-purple-dark border border-budget-purple/30 
+           shadow-lg text-white transform transition-all duration-300 
+           hover:shadow-xl hover:scale-105 hover:rotate-1;
+  }
+  
+  .level-badge {
+    @apply bg-budget-purple text-white rounded-full p-2 flex items-center justify-center 
+           font-bold shadow-md transition-all duration-300 hover:scale-110 hover:shadow-lg;
+  }
+  
+  .transaction-row {
+    @apply transition-all duration-200 hover:bg-accent/50;
+  }
+  
+  .animated-bg {
+    @apply relative overflow-hidden;
+  }
+  
+  .animated-bg:after {
+    content: "";
+    @apply absolute top-0 left-0 right-0 bottom-0 bg-gradient-to-r from-white/0 via-white/5 to-white/0;
+    animation: shine 3s infinite linear;
+  }
+  
+  .pop-in {
+    animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+  
+  .pulse {
+    animation: pulse 2s infinite;
+  }
+  
+  .slide-up {
+    animation: slideUp 0.5s ease-out;
+  }
+  
+  .slide-right {
+    animation: slideRight 0.5s ease-out;
+  }
+  
+  .scale-in {
+    animation: scaleIn 0.5s ease-out;
+  }
+  
+  /* Animation keyframes */
+  @keyframes shine {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(100%); }
+  }
+  
+  @keyframes popIn {
+    0% { transform: scale(0.8); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  
+  @keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+  }
+  
+  @keyframes slideUp {
+    0% { transform: translateY(20px); opacity: 0; }
+    100% { transform: translateY(0); opacity: 1; }
+  }
+  
+  @keyframes slideRight {
+    0% { transform: translateX(-20px); opacity: 0; }
+    100% { transform: translateX(0); opacity: 1; }
+  }
+  
+  @keyframes scaleIn {
+    0% { transform: scale(0.9); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  /* Confetti animation */
+  .confetti {
+    @apply fixed top-0 left-0 w-full h-full pointer-events-none z-50 overflow-hidden;
+  }
+  
+  .confetti-piece {
+    @apply absolute animate-fall;
+  }
+
+  /* Progress bar animation */
+  @keyframes progressBarStripes {
+    from { background-position: 1rem 0; }
+    to { background-position: 0 0; }
+  }
+  
+  .animate-progress {
+    background-image: linear-gradient(
+      45deg,
+      rgba(255, 255, 255, 0.15) 25%,
+      transparent 25%,
+      transparent 50%,
+      rgba(255, 255, 255, 0.15) 50%,
+      rgba(255, 255, 255, 0.15) 75%,
+      transparent 75%,
+      transparent
+    );
+    background-size: 1rem 1rem;
+    animation: progressBarStripes 1s linear infinite;
+  }
+  
+  /* Game-like button */
+  .game-button {
+    @apply relative overflow-hidden rounded-md bg-gradient-to-br from-budget-purple to-budget-purple-dark 
+           text-white font-medium py-2 px-4 shadow-md transition-all duration-300
+           hover:shadow-lg hover:shadow-budget-purple/30 hover:scale-105 active:scale-95
+           before:absolute before:w-full before:h-full before:top-0 before:left-0
+           before:bg-white/20 before:scale-x-0 before:origin-right
+           hover:before:scale-x-100 hover:before:origin-left
+           before:transition-transform before:duration-300;
+  }
+  
+  /* Achievement unlocked notification */
+  .achievement-notification {
+    @apply fixed bottom-4 right-4 p-4 rounded-lg bg-gradient-to-r from-budget-purple to-budget-purple-dark
+           text-white shadow-lg transform transition-all duration-500 flex items-center gap-3
+           animate-slide-in-up z-50;
+  }
+  
+  @keyframes slide-in-up {
+    0% { transform: translateY(100%); opacity: 0; }
+    100% { transform: translateY(0); opacity: 1; }
+  }
+}
+
+/* Fix scroll issues */
+html, body, #root {
+  height: 100%;
+  overflow-y: auto !important;
+}
+
+#root {
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
 }
