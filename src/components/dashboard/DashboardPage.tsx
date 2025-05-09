@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -52,7 +51,7 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <Header title="Dashboard" />
-      <main className="flex-1 p-4 lg:p-8">
+      <main className="flex-1 p-4 lg:p-8 overflow-y-auto">
         <div className="grid gap-4 md:gap-8 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
           <Card className="animate-fade-in">
             <CardHeader className="flex flex-row items-center justify-between pb-2">

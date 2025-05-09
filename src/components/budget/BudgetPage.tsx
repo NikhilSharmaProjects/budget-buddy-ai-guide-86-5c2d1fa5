@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -91,7 +92,7 @@ export default function BudgetPage() {
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <Header title="Budget Planner" />
-      <main className="flex-1 p-4 lg:p-8">
+      <main className="flex-1 p-4 lg:p-8 overflow-y-auto">
         <div className="grid gap-6 md:grid-cols-2">
           <Card className="md:col-span-2 animate-fade-in">
             <CardHeader>
