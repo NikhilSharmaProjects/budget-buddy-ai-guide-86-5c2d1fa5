@@ -1,4 +1,3 @@
-
 import { useEffect, useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -394,14 +393,15 @@ What would you like help with today?`,
       
       const importResult = importTransactionsFromCSV(csvContent);
       
-      if (typeof importResult === 'number') {
+      // Fix: Check if importResult is an array of transactions or a number
+      if (Array.isArray(importResult)) {
+        // If it's an array, use it directly
+        setTransactions(importResult);
+        saveTransactions(importResult);
         toast({
           title: "Import Successful",
-          description: `${importResult} new transactions imported.`,
+          description: `${importResult.length} transactions imported.`,
         });
-        
-        // Update transactions list
-        setTransactions(getTransactions());
         
         // Generate new AI suggestions
         generateAiSuggestions();
@@ -412,11 +412,14 @@ What would you like help with today?`,
         // Clear CSV content and preview
         setCsvContent("");
         setPreviewTransactions([]);
-      } else if (Array.isArray(importResult)) {
-        setTransactions(importResult);
+      } else if (typeof importResult === 'number') {
+        // If it's a number (count of imported transactions), get the updated transactions
+        const updatedTransactions = getTransactions();
+        setTransactions(updatedTransactions);
+        
         toast({
           title: "Import Successful",
-          description: `${importResult.length} new transactions imported.`,
+          description: `${importResult} new transactions imported.`,
         });
         
         // Generate new AI suggestions
