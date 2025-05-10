@@ -4,10 +4,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Bot, Send, Sparkles, Brain, Trash2, Zap } from "lucide-react";
+import { 
+  Bot, Send, Sparkles, Brain, Trash2, 
+  FileImport, FileExport, Upload, Download 
+} from "lucide-react";
 import { Header } from "@/components/layout/Header";
-import { AIMessage, AIConversation } from "@/types";
-import { getConversation, saveConversation, getTransactions, getBudget } from "@/utils/localStorage";
+import { AIMessage, AIConversation, Transaction } from "@/types";
+import { 
+  getConversation, saveConversation, getTransactions, 
+  getBudget, saveTransactions 
+} from "@/utils/localStorage";
 import { 
   calculateTotalIncome, 
   calculateTotalExpenses, 
@@ -17,6 +23,21 @@ import {
 } from "@/utils/calculations";
 import { useGame } from "@/components/game/GameContext";
 import { Progress } from "@/components/ui/progress";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+  DialogClose
+} from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { importTransactionsFromCSV, exportTransactionsToCSV, getAIBudgetTips } from "@/utils/csvHandler";
+import { toast } from "@/hooks/use-toast";
 
 export default function AssistantPage() {
   const [conversation, setConversation] = useState<AIConversation>({
@@ -27,6 +48,12 @@ export default function AssistantPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
+  const [csvContent, setCsvContent] = useState("");
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [previewTransactions, setPreviewTransactions] = useState<Transaction[]>([]);
+  const [selectedTab, setSelectedTab] = useState("import");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { unlockAchievement, addPoints } = useGame();
@@ -42,6 +69,8 @@ export default function AssistantPage() {
   
   useEffect(() => {
     const savedConversation = getConversation();
+    const loadedTransactions = getTransactions();
+    setTransactions(loadedTransactions);
     
     if (savedConversation.messages.length === 0) {
       // Initialize with a welcome message if conversation is empty
@@ -54,6 +83,8 @@ I can analyze your spending, suggest budgets, provide savings tips, and answer y
 - "Analyze my spending patterns"
 - "Help me create a budget plan"
 - "What are my top expense categories?"
+
+You can also import your transaction data using the Import/Export button above!
 
 What would you like help with today?`,
         sender: "assistant",
@@ -109,8 +140,11 @@ What would you like help with today?`,
     
     // Identify top spending category
     const topCategory = Object.entries(spendingByCategory)
-      .sort(([, a], [, b]) => b - a)[0][0];
-    suggestions.push(`How can I spend less on ${topCategory}?`);
+      .sort(([, a], [, b]) => b - a)[0]?.[0];
+      
+    if (topCategory) {
+      suggestions.push(`How can I spend less on ${topCategory}?`);
+    }
     
     // Save more if balance is positive
     if (balance > 0) {
@@ -122,6 +156,9 @@ What would you like help with today?`,
     
     // Analyze spending
     suggestions.push("Analyze my spending patterns");
+    
+    // Show me budget tips
+    suggestions.push("Show me budget tips");
     
     setAiSuggestions(suggestions);
   };
@@ -220,6 +257,10 @@ What would you like help with today?`,
 
 Would you like me to help create a specific savings plan for any category?`;
       } 
+      else if (userQuery.includes("budget") && userQuery.includes("tips")) {
+        // Generate AI budget tips based on transactions
+        aiResponse = getAIBudgetTips(transactions);
+      }
       else if (userQuery.includes("summarize") || 
               ((userQuery.includes("spending") || userQuery.includes("expenses")) && 
                (userQuery.includes("analysis") || userQuery.includes("analyze")))) {
@@ -366,6 +407,7 @@ I'm your Budget Buddy AI assistant, here to help with your financial questions.
 - "Suggest a budget based on my income"
 - "Help me reduce my debt"
 - "How should I start investing?"
+- "Show me budget tips"
 
 What specific financial goal would you like help with today?`;
       }
@@ -442,6 +484,112 @@ What would you like help with today?`,
     saveConversation(newConversation);
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      setCsvContent(content);
+      
+      try {
+        // Parse CSV for preview
+        const importedTransactions = importTransactionsFromCSV(content);
+        setPreviewTransactions(importedTransactions);
+        toast({
+          title: "CSV Preview Loaded",
+          description: `${importedTransactions.length} transactions found in CSV file.`,
+        });
+      } catch (error) {
+        toast({
+          title: "Error Loading CSV",
+          description: error instanceof Error ? error.message : "Failed to parse CSV file.",
+          variant: "destructive"
+        });
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const importCSV = () => {
+    try {
+      if (!csvContent) {
+        toast({
+          title: "No CSV Content",
+          description: "Please upload a CSV file first.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      const newTransactionsCount = importTransactionsFromCSV(csvContent);
+      
+      if (newTransactionsCount > 0) {
+        toast({
+          title: "Import Successful",
+          description: `${newTransactionsCount} new transactions imported.`,
+        });
+        
+        // Update transactions list
+        setTransactions(getTransactions());
+        
+        // Generate new AI suggestions
+        generateAiSuggestions();
+        
+        // Add points for importing data
+        addPoints(5);
+        
+        // Clear CSV content and preview
+        setCsvContent("");
+        setPreviewTransactions([]);
+      } else {
+        toast({
+          title: "No New Transactions",
+          description: "All transactions in the CSV already exist in your data.",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Import Failed",
+        description: error instanceof Error ? error.message : "Failed to import CSV file.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const exportCSV = () => {
+    try {
+      const csv = exportTransactionsToCSV();
+      
+      // Create blob and download link
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `budget_buddy_transactions_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.display = "none";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast({
+        title: "Export Successful",
+        description: `${transactions.length} transactions exported to CSV.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Export Failed",
+        description: "Failed to export transactions to CSV.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const triggerFileInput = () => {
+    fileInputRef.current?.click();
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <Header title="AI Assistant" />
@@ -455,20 +603,144 @@ What would you like help with today?`,
                 </div>
                 <h2 className="font-semibold">Budget Buddy AI</h2>
               </div>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={resetConversation}
-                className="group transition-all duration-300"
-              >
-                <Trash2 className="h-4 w-4 mr-2 group-hover:text-destructive transition-colors" />
-                New Chat
-              </Button>
+              <div className="flex gap-2">
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="group transition-all duration-300"
+                    >
+                      <FileImport className="h-4 w-4 mr-2 group-hover:text-primary transition-colors" />
+                      Import/Export
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Import/Export Transactions</DialogTitle>
+                    </DialogHeader>
+                    <Tabs value={selectedTab} onValueChange={setSelectedTab}>
+                      <TabsList className="grid grid-cols-2">
+                        <TabsTrigger value="import">Import CSV</TabsTrigger>
+                        <TabsTrigger value="export">Export CSV</TabsTrigger>
+                      </TabsList>
+                      <TabsContent value="import" className="space-y-4">
+                        <div className="space-y-4">
+                          <div className="flex flex-col gap-2">
+                            <Label htmlFor="csvFile">Select CSV File</Label>
+                            <div className="flex gap-2">
+                              <Input
+                                ref={fileInputRef}
+                                id="csvFile"
+                                type="file"
+                                accept=".csv"
+                                onChange={handleFileChange}
+                                className="hidden"
+                              />
+                              <Button onClick={triggerFileInput} className="flex-1">
+                                <Upload className="h-4 w-4 mr-2" />
+                                Choose File
+                              </Button>
+                              {csvContent && (
+                                <Button onClick={() => setCsvContent("")} variant="destructive" size="icon">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+                            {csvContent && (
+                              <p className="text-sm text-muted-foreground">
+                                {previewTransactions.length} transactions found in file
+                              </p>
+                            )}
+                          </div>
+                          
+                          {previewTransactions.length > 0 && (
+                            <div className="border rounded-md overflow-hidden">
+                              <div className="max-h-[200px] overflow-y-auto">
+                                <Table>
+                                  <TableHeader>
+                                    <TableRow>
+                                      <TableHead>Date</TableHead>
+                                      <TableHead>Description</TableHead>
+                                      <TableHead>Amount</TableHead>
+                                      <TableHead>Type</TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {previewTransactions.slice(0, 5).map((transaction) => (
+                                      <TableRow key={transaction.id}>
+                                        <TableCell>{transaction.date}</TableCell>
+                                        <TableCell className="max-w-[150px] truncate">
+                                          {transaction.description}
+                                        </TableCell>
+                                        <TableCell>{formatCurrency(transaction.amount)}</TableCell>
+                                        <TableCell>{transaction.type}</TableCell>
+                                      </TableRow>
+                                    ))}
+                                    {previewTransactions.length > 5 && (
+                                      <TableRow>
+                                        <TableCell colSpan={4} className="text-center text-muted-foreground text-sm">
+                                          +{previewTransactions.length - 5} more transactions
+                                        </TableCell>
+                                      </TableRow>
+                                    )}
+                                  </TableBody>
+                                </Table>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        <DialogFooter>
+                          <DialogClose asChild>
+                            <Button variant="outline">Cancel</Button>
+                          </DialogClose>
+                          <Button 
+                            onClick={importCSV} 
+                            disabled={!csvContent}
+                          >
+                            <FileImport className="h-4 w-4 mr-2" />
+                            Import Data
+                          </Button>
+                        </DialogFooter>
+                      </TabsContent>
+                      <TabsContent value="export" className="space-y-4">
+                        <div className="space-y-2">
+                          <p className="text-sm text-muted-foreground">
+                            Export all your transaction data in CSV format. This file can be imported into 
+                            spreadsheet applications or back into Budget Buddy.
+                          </p>
+                          <p className="text-sm font-medium">
+                            Total transactions: {transactions.length}
+                          </p>
+                        </div>
+                        <DialogFooter>
+                          <DialogClose asChild>
+                            <Button variant="outline">Cancel</Button>
+                          </DialogClose>
+                          <Button onClick={exportCSV} disabled={transactions.length === 0}>
+                            <Download className="h-4 w-4 mr-2" />
+                            Export to CSV
+                          </Button>
+                        </DialogFooter>
+                      </TabsContent>
+                    </Tabs>
+                  </DialogContent>
+                </Dialog>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={resetConversation}
+                  className="group transition-all duration-300"
+                >
+                  <Trash2 className="h-4 w-4 mr-2 group-hover:text-destructive transition-colors" />
+                  New Chat
+                </Button>
+              </div>
             </div>
             
             <div ref={scrollAreaRef} className="flex-1 relative">
-              <ScrollArea className="h-[calc(100vh-220px)] p-4">
-                <div className="space-y-4">
+              <ScrollArea className="h-[calc(100vh-220px)]">
+                <div className="p-4 space-y-4">
                   {conversation.messages.map((message) => (
                     <div
                       key={message.id}
