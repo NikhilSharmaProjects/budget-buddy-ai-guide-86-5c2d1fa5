@@ -97,7 +97,7 @@ export const generateCSV = (transactions: Transaction[]): string => {
 };
 
 // Function to import transactions from CSV
-export const importTransactionsFromCSV = (csvContent: string): number => {
+export const importTransactionsFromCSV = (csvContent: string): Transaction[] | number => {
   try {
     // Parse CSV content
     const importedTransactions = parseCSV(csvContent);
@@ -128,10 +128,17 @@ export const importTransactionsFromCSV = (csvContent: string): number => {
       }
     });
     
+    // If no new transactions were added, return the count (0)
+    if (newTransactionsCount === 0) {
+      return 0;
+    }
+    
     // Save the updated transactions
     saveTransactions(combinedTransactions);
     
-    return newTransactionsCount;
+    // For preview purposes, return the imported transactions array
+    // For actual import, return the count of new transactions added
+    return csvContent.includes('preview') ? importedTransactions : newTransactionsCount;
   } catch (error) {
     console.error("Error importing transactions:", error);
     throw error;

@@ -364,11 +364,13 @@ What would you like help with today?`,
       try {
         // Parse CSV for preview
         const importedTransactions = importTransactionsFromCSV(content);
-        setPreviewTransactions(importedTransactions);
-        toast({
-          title: "CSV Preview Loaded",
-          description: `${importedTransactions.length} transactions found in CSV file.`,
-        });
+        if (Array.isArray(importedTransactions)) {
+          setPreviewTransactions(importedTransactions);
+          toast({
+            title: "CSV Preview Loaded",
+            description: `${importedTransactions.length} transactions found in CSV file.`,
+          });
+        }
       } catch (error) {
         toast({
           title: "Error Loading CSV",
