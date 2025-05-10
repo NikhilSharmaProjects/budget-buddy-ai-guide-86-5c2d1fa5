@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   Bot, Send, Sparkles, Brain, Trash2, 
-  FileImport, FileExport, Upload, Download 
+  FileText, Upload, Download 
 } from "lucide-react";
 import { Header } from "@/components/layout/Header";
 import { AIMessage, AIConversation, Transaction } from "@/types";
@@ -38,6 +38,52 @@ import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { importTransactionsFromCSV, exportTransactionsToCSV, getAIBudgetTips } from "@/utils/csvHandler";
 import { toast } from "@/hooks/use-toast";
+
+// NVIDIA AI API integration
+const API_KEY = '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';
+const BASE_URL = 'https://integrate.api.nvidia.com/v1';
+
+async function generateAIResponse(userMessage: string, financialContext: any) {
+  try {
+    const response = await fetch(`${BASE_URL}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: "writer/palmyra-fin-70b-32k",
+        messages: [
+          {
+            role: "system",
+            content: "You are a financial advisor assistant called Budget Buddy. Provide helpful, concise advice about personal finances. Use bullet points and sections for readability. Be encouraging and positive. Focus on practical, actionable advice."
+          },
+          {
+            role: "user",
+            content: `
+              Here's my financial data:
+              - Total Income: ${financialContext.totalIncome}
+              - Total Expenses: ${financialContext.totalExpenses}
+              - Current Balance: ${financialContext.balance}
+              - Top expenses by category: ${JSON.stringify(financialContext.spendingByCategory)}
+              
+              My question is: ${userMessage}
+            `
+          }
+        ],
+        temperature: 0.2,
+        top_p: 0.7,
+        max_tokens: 1024
+      }),
+    });
+
+    const data = await response.json();
+    return data.choices[0]?.message?.content || "Sorry, I couldn't generate a response at this time.";
+  } catch (error) {
+    console.error("Error generating AI response:", error);
+    return "Sorry, I encountered an error processing your request. Please try again later.";
+  }
+}
 
 export default function AssistantPage() {
   const [conversation, setConversation] = useState<AIConversation>({
@@ -221,196 +267,19 @@ What would you like help with today?`,
         thinkingIndex = (thinkingIndex + 1) % thinkingMessages.length;
       }, 1000);
       
-      // Simulate AI processing time
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      // Create financial context for AI
+      const financialContext = {
+        totalIncome,
+        totalExpenses,
+        balance,
+        spendingByCategory
+      };
+
+      // Generate AI response with NVIDIA API
+      const aiResponse = await generateAIResponse(inputMessage, financialContext);
       
       clearInterval(thinkingInterval);
       setIsThinking(false);
-      
-      // Simple rule-based responses for demo
-      const userQuery = inputMessage.toLowerCase();
-      let aiResponse = "";
-      
-      if (userQuery.includes("save") && userQuery.includes("more")) {
-        aiResponse = `Based on your spending patterns, I see a few opportunities to save more:
-        
-✨ **Top Saving Opportunities**
-
-1. Your ${Object.entries(spendingByCategory)
-          .sort(([, a], [, b]) => b - a)
-          .slice(0, 2)
-          .map(([category]) => category)
-          .join(' and ')} expenses are your highest categories. 
-   Try reducing these by 10-15% to save ${formatCurrency(
-     (spendingByCategory[Object.entries(spendingByCategory)
-       .sort(([, a], [, b]) => b - a)[0][0] as keyof typeof spendingByCategory] * 0.1)
-   )} - ${formatCurrency(
-     (spendingByCategory[Object.entries(spendingByCategory)
-       .sort(([, a], [, b]) => b - a)[0][0] as keyof typeof spendingByCategory] * 0.15)
-   )} per month.
-        
-2. **Try the 50/30/20 Rule**: 50% for needs, 30% for wants, and 20% for savings.
-        
-3. **Automation is Your Friend**: Set up automatic transfers to a savings account on payday to build savings consistently.
-
-4. **Challenge**: Try a "no-spend weekend" once a month - this small change can save ${formatCurrency(totalExpenses * 0.07)} monthly based on your patterns.
-
-Would you like me to help create a specific savings plan for any category?`;
-      } 
-      else if (userQuery.includes("budget") && userQuery.includes("tips")) {
-        // Generate AI budget tips based on transactions
-        aiResponse = getAIBudgetTips(transactions);
-      }
-      else if (userQuery.includes("summarize") || 
-              ((userQuery.includes("spending") || userQuery.includes("expenses")) && 
-               (userQuery.includes("analysis") || userQuery.includes("analyze")))) {
-        aiResponse = `# 📊 Spending Analysis Summary
-
-**Total Expenses**: ${formatCurrency(totalExpenses)}
-**Total Income**: ${formatCurrency(totalIncome)}
-**Current Balance**: ${formatCurrency(balance)}
-
-## 🔍 Top Categories:
-${Object.entries(spendingByCategory)
-  .sort(([, a], [, b]) => b - a)
-  .slice(0, 3)
-  .map(([category, amount], index) => `${index + 1}. **${category}**: ${formatCurrency(amount)} (${Math.round((amount / totalExpenses) * 100)}% of total)`)
-  .join('\n')}
-
-## 💡 Key Insights:
-- You've spent ${balance >= 0 ? formatCurrency(totalIncome - balance) : 'more than you earned'} this month
-- ${balance >= 0 
-  ? `You have ${formatCurrency(balance)} remaining in your budget` 
-  : `You're currently ${formatCurrency(Math.abs(balance))} over budget`}
-- Your spending on ${Object.entries(spendingByCategory)
-  .sort(([, a], [, b]) => b - a)[0][0]} is ${Math.round((spendingByCategory[Object.entries(spendingByCategory)
-  .sort(([, a], [, b]) => b - a)[0][0] as keyof typeof spendingByCategory] / totalExpenses) * 100)}% of your total expenses
-
-## 🎯 Recommendations:
-Consider reallocating some of your ${Object.entries(spendingByCategory)
-  .sort(([, a], [, b]) => b - a)[0][0]} budget to savings or paying down debt.
-
-Would you like more detailed analysis on any specific category?`;
-      }
-      else if (userQuery.includes("suggest") && userQuery.includes("budget")) {
-        aiResponse = `# 🌟 Personalized Budget Plan
-
-Based on your income of ${formatCurrency(totalIncome)} and current spending patterns, I've created a customized budget plan for you:
-
-## 💰 Recommended Monthly Allocations:
-
-${Object.entries(spendingByCategory)
-  .map(([category, amount]) => {
-    // Adjust budget based on category (simplified logic for demo)
-    const adjustment = category === 'Entertainment' || category === 'Shopping' 
-      ? 0.9  // Reduce discretionary spending
-      : category === 'Income' ? 0 : 1.0;
-    const recommendedAmount = amount * adjustment;
-    const percentIncome = (recommendedAmount / totalIncome * 100).toFixed(1);
-    return `- **${category}**: ${formatCurrency(recommendedAmount)} (${percentIncome}% of income) ${
-      adjustment < 1 ? '🔽 10% reduction recommended' : '✅ maintain current'
-    }`;
-  })
-  .join('\n')}
-
-## 🏆 Savings Goal
-I recommend allocating at least **${formatCurrency(totalIncome * 0.2)}** (20% of income) to savings each month.
-
-## 🚀 Next Steps:
-1. Track your expenses in each category
-2. Review progress weekly
-3. Adjust as needed at month-end
-
-Would you like me to create a more detailed plan for a specific category?`;
-      }
-      else if (userQuery.includes("help") && 
-               (userQuery.includes("debt") || userQuery.includes("loans") || userQuery.includes("credit"))) {
-        aiResponse = `# 🛡️ Debt Management Strategy
-
-Based on your financial profile, here's a personalized debt management plan:
-
-## 💳 Debt Reduction Approach
-
-I recommend the **Avalanche Method**:
-1. List all debts from highest to lowest interest rate
-2. Pay minimum payments on all debts
-3. Put extra money toward the highest-interest debt first
-4. Once paid off, move to the next highest-interest debt
-
-## 🧮 Potential Results
-
-If you allocate ${formatCurrency(balance > 0 ? balance * 0.8 : totalIncome * 0.15)} monthly to debt payment:
-- You could save approximately ${formatCurrency(totalIncome * 0.05)} in interest over time
-- Potential debt-free timeline: 18-24 months (estimated)
-
-## 🌟 Pro Tips:
-- Consider balance transfers for high-interest credit cards
-- Automate payments to avoid missed deadlines
-- Consider consolidation for multiple high-interest debts
-
-Would you like to create a specific debt payoff plan with your actual debt amounts and interest rates?`;
-      }
-      else if (userQuery.includes("invest") || userQuery.includes("investing")) {
-        aiResponse = `# 💎 Investment Strategy Guidance
-
-Based on your financial profile, here are personalized investment recommendations:
-
-## 🏦 Suggested Investment Allocation
-
-With your current situation, consider this allocation:
-- **Emergency Fund**: 3-6 months of expenses in high-yield savings (priority if not established)
-- **Retirement**: 15% of income in tax-advantaged accounts (401(k), IRA)
-- **Medium-term goals**: 5-10% in balanced funds or ETFs
-- **Growth investments**: 5-10% in diversified stock index funds
-
-## 📊 Getting Started Steps
-
-1. **First Priority**: Establish emergency fund of ${formatCurrency(totalExpenses * 3)} to ${formatCurrency(totalExpenses * 6)}
-2. **Next Step**: Max out employer 401(k) match if available
-3. **Then**: Consider a Roth IRA for tax-free growth
-4. **Finally**: Explore taxable investment accounts for additional goals
-
-## 💡 Key Principles:
-- Diversify investments across asset classes
-- Focus on low-fee index funds for long-term growth
-- Invest regularly regardless of market conditions
-- Rebalance portfolio annually
-
-Would you like more specific investment recommendations or information about particular investment types?`;
-      }
-      else {
-        aiResponse = `# 🚀 Financial AI Assistant
-
-I'm your Budget Buddy AI assistant, here to help with your financial questions.
-        
-## 📊 Your Financial Snapshot:
-- Income: ${formatCurrency(totalIncome)}
-- Expenses: ${formatCurrency(totalExpenses)}
-- Balance: ${formatCurrency(balance)}
-- Top expense: ${Object.entries(spendingByCategory)
-  .sort(([, a], [, b]) => b - a)[0][0]} (${formatCurrency(
-    spendingByCategory[Object.entries(spendingByCategory)
-    .sort(([, a], [, b]) => b - a)[0][0] as keyof typeof spendingByCategory]
-  )})
-
-## 💡 I Can Help With:
-- Analyzing your spending patterns
-- Creating a personalized budget
-- Identifying saving opportunities
-- Debt reduction strategies
-- Investment guidance
-- Financial goal planning
-
-## 🎯 Suggested Questions:
-- "How can I save more this month?"
-- "Analyze my spending patterns"
-- "Suggest a budget based on my income"
-- "Help me reduce my debt"
-- "How should I start investing?"
-- "Show me budget tips"
-
-What specific financial goal would you like help with today?`;
-      }
       
       // Remove thinking messages
       const messagesWithoutThinking = updatedConversation.messages.filter(m => m.sender !== "thinking");
@@ -523,16 +392,32 @@ What would you like help with today?`,
         return;
       }
       
-      const newTransactionsCount = importTransactionsFromCSV(csvContent);
+      const importResult = importTransactionsFromCSV(csvContent);
       
-      if (newTransactionsCount > 0) {
+      if (typeof importResult === 'number') {
         toast({
           title: "Import Successful",
-          description: `${newTransactionsCount} new transactions imported.`,
+          description: `${importResult} new transactions imported.`,
         });
         
         // Update transactions list
         setTransactions(getTransactions());
+        
+        // Generate new AI suggestions
+        generateAiSuggestions();
+        
+        // Add points for importing data
+        addPoints(5);
+        
+        // Clear CSV content and preview
+        setCsvContent("");
+        setPreviewTransactions([]);
+      } else if (Array.isArray(importResult)) {
+        setTransactions(importResult);
+        toast({
+          title: "Import Successful",
+          description: `${importResult.length} new transactions imported.`,
+        });
         
         // Generate new AI suggestions
         generateAiSuggestions();
@@ -611,7 +496,7 @@ What would you like help with today?`,
                       size="sm" 
                       className="group transition-all duration-300"
                     >
-                      <FileImport className="h-4 w-4 mr-2 group-hover:text-primary transition-colors" />
+                      <FileText className="h-4 w-4 mr-2 group-hover:text-primary transition-colors" />
                       Import/Export
                     </Button>
                   </DialogTrigger>
@@ -698,7 +583,7 @@ What would you like help with today?`,
                             onClick={importCSV} 
                             disabled={!csvContent}
                           >
-                            <FileImport className="h-4 w-4 mr-2" />
+                            <FileText className="h-4 w-4 mr-2" />
                             Import Data
                           </Button>
                         </DialogFooter>
