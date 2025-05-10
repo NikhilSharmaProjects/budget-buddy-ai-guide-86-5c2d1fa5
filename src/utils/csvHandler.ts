@@ -99,11 +99,21 @@ export const generateCSV = (transactions: Transaction[]): string => {
 // Function to import transactions from CSV
 export const importTransactionsFromCSV = (csvContent: string): Transaction[] | number => {
   try {
+    // Check if this is a preview request
+    const isPreview = csvContent.includes('preview');
+    // Remove the preview flag if present
+    const cleanContent = isPreview ? csvContent.replace('preview', '') : csvContent;
+    
     // Parse CSV content
-    const importedTransactions = parseCSV(csvContent);
+    const importedTransactions = parseCSV(cleanContent);
     
     if (importedTransactions.length === 0) {
       throw new Error("No valid transactions found in the CSV file.");
+    }
+    
+    // For preview, just return the transactions without saving
+    if (isPreview) {
+      return importedTransactions;
     }
     
     // Get existing transactions
@@ -136,9 +146,8 @@ export const importTransactionsFromCSV = (csvContent: string): Transaction[] | n
     // Save the updated transactions
     saveTransactions(combinedTransactions);
     
-    // For preview purposes, return the imported transactions array
-    // For actual import, return the count of new transactions added
-    return csvContent.includes('preview') ? importedTransactions : newTransactionsCount;
+    // Return the count of new transactions added
+    return newTransactionsCount;
   } catch (error) {
     console.error("Error importing transactions:", error);
     throw error;

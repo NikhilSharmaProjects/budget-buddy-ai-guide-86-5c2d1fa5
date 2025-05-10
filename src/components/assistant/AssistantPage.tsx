@@ -363,12 +363,20 @@ What would you like help with today?`,
       
       try {
         // Parse CSV for preview
-        const importedTransactions = importTransactionsFromCSV(content);
-        if (Array.isArray(importedTransactions)) {
-          setPreviewTransactions(importedTransactions);
+        const importResult = importTransactionsFromCSV(content + 'preview'); // Add preview flag
+        
+        if (Array.isArray(importResult)) {
+          setPreviewTransactions(importResult);
           toast({
             title: "CSV Preview Loaded",
-            description: `${importedTransactions.length} transactions found in CSV file.`,
+            description: `${importResult.length} transactions found in CSV file.`,
+          });
+        } else {
+          // Handle unexpected result
+          toast({
+            title: "Error Loading CSV Preview",
+            description: "Unexpected result format from CSV parser.",
+            variant: "destructive"
           });
         }
       } catch (error) {
