@@ -9,7 +9,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import DashboardPage from "./components/dashboard/DashboardPage";
-import TransactionsPage from "./components/transactions/TransactionsPage";
+import EnhancedTransactionsPage from "./components/transactions/EnhancedTransactionsPage";
 import BudgetPage from "./components/budget/BudgetPage";
 import AssistantPage from "./components/assistant/AssistantPage";
 import LoginPage from "./components/auth/LoginPage";
@@ -104,7 +104,7 @@ const App = () => {
                     {/* Protected routes */}
                     <Route path="/" element={isAuthenticated ? <Index /> : <Navigate to="/login" />} />
                     <Route path="/dashboard" element={isAuthenticated ? <DashboardPage /> : <Navigate to="/login" />} />
-                    <Route path="/transactions" element={isAuthenticated ? <TransactionsPage /> : <Navigate to="/login" />} />
+                    <Route path="/transactions" element={isAuthenticated ? <EnhancedTransactionsPage /> : <Navigate to="/login" />} />
                     <Route path="/budget" element={isAuthenticated ? <BudgetPage /> : <Navigate to="/login" />} />
                     <Route path="/assistant" element={isAuthenticated ? <AssistantPage /> : <Navigate to="/login" />} />
                     <Route path="*" element={<NotFound />} />

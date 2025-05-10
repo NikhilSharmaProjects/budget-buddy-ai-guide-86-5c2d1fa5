@@ -35,54 +35,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { importTransactionsFromCSV, exportTransactionsToCSV, getAIBudgetTips } from "@/utils/csvHandler";
+import { importTransactionsFromCSV, exportTransactionsToCSV } from "@/utils/csvHandler";
 import { toast } from "@/hooks/use-toast";
-
-// NVIDIA AI API integration
-const API_KEY = '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';
-const BASE_URL = 'https://integrate.api.nvidia.com/v1';
-
-async function generateAIResponse(userMessage: string, financialContext: any) {
-  try {
-    const response = await fetch(`${BASE_URL}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: "writer/palmyra-fin-70b-32k",
-        messages: [
-          {
-            role: "system",
-            content: "You are a financial advisor assistant called Budget Buddy. Provide helpful, concise advice about personal finances. Use bullet points and sections for readability. Be encouraging and positive. Focus on practical, actionable advice."
-          },
-          {
-            role: "user",
-            content: `
-              Here's my financial data:
-              - Total Income: ${financialContext.totalIncome}
-              - Total Expenses: ${financialContext.totalExpenses}
-              - Current Balance: ${financialContext.balance}
-              - Top expenses by category: ${JSON.stringify(financialContext.spendingByCategory)}
-              
-              My question is: ${userMessage}
-            `
-          }
-        ],
-        temperature: 0.2,
-        top_p: 0.7,
-        max_tokens: 1024
-      }),
-    });
-
-    const data = await response.json();
-    return data.choices[0]?.message?.content || "Sorry, I couldn't generate a response at this time.";
-  } catch (error) {
-    console.error("Error generating AI response:", error);
-    return "Sorry, I encountered an error processing your request. Please try again later.";
-  }
-}
+import { generateAIResponse } from "@/utils/aiService";
 
 export default function AssistantPage() {
   const [conversation, setConversation] = useState<AIConversation>({
@@ -274,7 +229,7 @@ What would you like help with today?`,
         spendingByCategory
       };
 
-      // Generate AI response with NVIDIA API
+      // Generate AI response with OpenAI SDK
       const aiResponse = await generateAIResponse(inputMessage, financialContext);
       
       clearInterval(thinkingInterval);
@@ -403,7 +358,7 @@ What would you like help with today?`,
       
       const importResult = importTransactionsFromCSV(csvContent);
       
-      // Fix: Check if importResult is an array of transactions or a number
+      // Check if importResult is an array of transactions or a number
       if (Array.isArray(importResult)) {
         // If it's an array, use it directly
         setTransactions(importResult);
