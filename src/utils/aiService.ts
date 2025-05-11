@@ -9,6 +9,7 @@ const BASE_URL = 'https://integrate.api.nvidia.com/v1';
 const openai = new OpenAI({
   apiKey: API_KEY,
   baseURL: BASE_URL,
+  dangerouslyAllowBrowser: true, // Enable browser usage
 });
 
 // Generate AI response for financial assistant
