@@ -2,7 +2,7 @@
 import OpenAI from 'openai';
 
 // NVIDIA AI API integration
-const API_KEY = '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';
+const API_KEY = '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';
 const BASE_URL = 'https://integrate.api.nvidia.com/v1';
 
 // Initialize the OpenAI client with NVIDIA API credentials
@@ -16,7 +16,7 @@ const openai = new OpenAI({
 export async function generateAIResponse(userMessage: string, financialContext: any): Promise<string> {
   try {
     const completion = await openai.chat.completions.create({
-      model: "writer/palmyra-fin-70b-32k",
+      model: "deepseek-ai/deepseek-r1",
       messages: [
         {
           role: "system",
@@ -35,9 +35,10 @@ export async function generateAIResponse(userMessage: string, financialContext: 
           `
         }
       ],
-      temperature: 0.2,
+      temperature: 0.6,
       top_p: 0.7,
-      max_tokens: 1024,
+      max_tokens: 4096,
+      stream: false,
     });
 
     return completion.choices[0]?.message?.content || "Sorry, I couldn't generate a response at this time.";
@@ -66,7 +67,7 @@ export async function generateAIBudgetTips(transactions: any[]): Promise<string>
 
     // Get AI analysis of spending patterns
     const completion = await openai.chat.completions.create({
-      model: "writer/palmyra-fin-70b-32k",
+      model: "deepseek-ai/deepseek-r1",
       messages: [
         {
           role: "system",
@@ -85,9 +86,10 @@ export async function generateAIBudgetTips(transactions: any[]): Promise<string>
           `
         }
       ],
-      temperature: 0.2,
+      temperature: 0.6,
       top_p: 0.7,
-      max_tokens: 1024,
+      max_tokens: 4096,
+      stream: false,
     });
 
     return completion.choices[0]?.message?.content || "# Budget Tips\n\nCouldn't generate personalized tips at this time.";
